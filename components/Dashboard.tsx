@@ -443,9 +443,18 @@ export default function Dashboard() {
               <div>
                 <h2>{showForm ? (draft.id ? "Takip konusunu düzenle" : "Yeni takip konusu") : selected?.baslik}</h2>
                 {!showForm && selected && <p className="muted">{selected.konuGrubu} · {selected.gorevliAd || selected.gorevliEmail}</p>}
+                {showForm && draft.id && <p className="muted">Bu kayıt için arşivleme ve silme işlemleri sağ üsttedir.</p>}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 {selected && !showForm && <button className="btn secondary" onClick={() => openEditTask(selected)}>Düzenle</button>}
+                {showForm && draft.id && (
+                  <>
+                    <button className="btn secondary" type="button" disabled={savingTask} onClick={() => applyTaskAction(draft.archivedAt ? "unarchive" : "archive")}>
+                      {draft.archivedAt ? "Arşivden çıkar" : "Arşivle"}
+                    </button>
+                    <button className="btn danger" type="button" disabled={savingTask} onClick={() => applyTaskAction("delete")}>Sil</button>
+                  </>
+                )}
                 <button className="btn secondary" onClick={() => { setSelected(null); setShowForm(false); }}>Kapat</button>
               </div>
             </div>
@@ -522,14 +531,6 @@ export default function Dashboard() {
                 </div>
                 <div className="form-actions">
                   <button className="btn" type="submit" disabled={savingTask}>{savingTask ? "Kaydediliyor..." : "Kaydet"}</button>
-                  {draft.id && (
-                    <>
-                      <button className="btn secondary" type="button" disabled={savingTask} onClick={() => applyTaskAction(draft.archivedAt ? "unarchive" : "archive")}>
-                        {draft.archivedAt ? "Arşivden çıkar" : "Arşivle"}
-                      </button>
-                      <button className="btn danger" type="button" disabled={savingTask} onClick={() => applyTaskAction("delete")}>Sil</button>
-                    </>
-                  )}
                 </div>
               </form>
             )}
