@@ -21,6 +21,19 @@ const TASK_HEADERS = [
 const UPDATE_HEADERS = ["id", "taskId", "tip", "metin", "yazarEmail", "yazarAd", "createdAt", "ekLink"];
 const TOPIC_HEADERS = ["konuGrubu", "aciklama", "sahipEmail", "aktif"];
 const ASSIGNEE_HEADERS = ["adSoyad", "email", "aktif"];
+const ATTACHMENT_HEADERS = [
+  "id",
+  "parentType",
+  "parentId",
+  "taskId",
+  "fileName",
+  "mimeType",
+  "size",
+  "driveFileId",
+  "driveUrl",
+  "uploadedBy",
+  "uploadedAt"
+];
 const PERMISSION_HEADERS = [
   "email",
   "adSoyad",
@@ -39,6 +52,7 @@ const SHEETS = {
   Updates: UPDATE_HEADERS,
   Topics: TOPIC_HEADERS,
   Assignees: ASSIGNEE_HEADERS,
+  Attachments: ATTACHMENT_HEADERS,
   Permissions: PERMISSION_HEADERS
 };
 
@@ -101,6 +115,7 @@ function handle_(e) {
     if (input.action === "appendTask") return json_(appendObject_("Tasks", TASK_HEADERS, input.task));
     if (input.action === "appendUpdate") return json_(appendObject_("Updates", UPDATE_HEADERS, input.update));
     if (input.action === "updateTask") return json_(updateObjectById_("Tasks", TASK_HEADERS, input.task));
+    if (input.action === "appendAttachments") return json_(appendAttachments_(input));
     if (input.action === "ensureHeaders") return json_({ ok: true });
 
     throw new Error("Unknown action: " + input.action);
@@ -160,6 +175,7 @@ function readAll_() {
     updates: readObjects_("Updates", UPDATE_HEADERS),
     topics: readObjects_("Topics", TOPIC_HEADERS),
     assignees: readObjects_("Assignees", ASSIGNEE_HEADERS),
+    attachments: readObjects_("Attachments", ATTACHMENT_HEADERS),
     permissions: readObjects_("Permissions", PERMISSION_HEADERS)
   };
 }
@@ -198,6 +214,57 @@ function appendObject_(name, headers, obj) {
   const sheet = sheet_(name);
   sheet.appendRow(objectToRow_(headers, obj));
   return { ok: true };
+}
+
+function appendAttachments_(input) {
+  const files = Array.isArray(input.files) ? input.files : [];
+  if (!input.parentType || !input.parentId || !input.taskId) throw new Error("Missing attachment parent");
+  if (files.length === 0) return { ok: true, attachments: [] };
+
+  const folder = attachmentsFolder_();
+  const uploadedAt = input.uploadedAt || new Date().toISOString();
+  const attachments = files.map(function (file) {
+    if (!file.fileName || !file.data) throw new Error("Missing attachment data");
+
+    const bytes = Utilities.base64Decode(file.data);
+    const blob = Utilities.newBlob(bytes, file.mimeType || "application/octet-stream", file.fileName);
+    const driveFile = folder.createFile(blob);
+    driveFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    return {
+      id: Utilities.getUuid(),
+      parentType: input.parentType === "Update" ? "Update" : "Task",
+      parentId: input.parentId,
+      taskId: input.taskId,
+      fileName: file.fileName,
+      mimeType: file.mimeType || "",
+      size: file.size || bytes.length,
+      driveFileId: driveFile.getId(),
+      driveUrl: driveFile.getUrl(),
+      uploadedBy: input.uploadedBy || "",
+      uploadedAt: uploadedAt
+    };
+  });
+
+  const sheet = sheet_("Attachments");
+  const rows = attachments.map(function (attachment) {
+    return objectToRow_(ATTACHMENT_HEADERS, attachment);
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, ATTACHMENT_HEADERS.length).setValues(rows);
+
+  return { ok: true, attachments: attachments };
+}
+
+function attachmentsFolder_() {
+  const props = PropertiesService.getScriptProperties();
+  const configuredId = props.getProperty("DRIVE_FOLDER_ID");
+  if (configuredId) return DriveApp.getFolderById(configuredId);
+
+  const folderName = "Endura İş Takip Dosyaları";
+  const folders = DriveApp.getFoldersByName(folderName);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+  props.setProperty("DRIVE_FOLDER_ID", folder.getId());
+  return folder;
 }
 
 function updateObjectById_(name, headers, obj) {

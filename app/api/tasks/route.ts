@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  appendAttachments,
   appendTask,
   getDataBundle,
   getPermissions,
   initializeHeaders
 } from "@/lib/sheets";
 import { canCreateInTopic, canViewTask, capabilityForTopic, isAdmin } from "@/lib/permissions";
-import { PRIORITIES, STATUSES, type Priority, type Status, type Task } from "@/lib/types";
+import { PRIORITIES, STATUSES, type AttachmentUpload, type Priority, type Status, type Task } from "@/lib/types";
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 
 function nowIso() {
   return new Date().toISOString();
@@ -17,11 +20,27 @@ function bad(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
+function attachmentsFromBody(body: Record<string, unknown>): AttachmentUpload[] {
+  if (!Array.isArray(body.attachments)) return [];
+  return body.attachments.map((item) => {
+    const file = (item || {}) as Record<string, unknown>;
+    const attachment = {
+      fileName: String(file.fileName || "").trim(),
+      mimeType: String(file.mimeType || "application/octet-stream").trim(),
+      size: Number(file.size || 0),
+      data: String(file.data || "")
+    };
+    if (!attachment.fileName || !attachment.data) throw new Error("Ek dosya bilgisi eksik");
+    if (attachment.size > MAX_ATTACHMENT_SIZE) throw new Error("Dosya başına en fazla 10 MB yüklenebilir");
+    return attachment;
+  });
+}
+
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return bad("Oturum gerekli", 401);
 
-  const { tasks, updates, permissions, topics, assignees } = await getDataBundle();
+  const { tasks, updates, permissions, topics, assignees, attachments } = await getDataBundle();
 
   const visibleTasks = tasks.filter((task) => canViewTask(user, permissions, task));
   const visibleTaskIds = new Set(visibleTasks.map((task) => task.id));
@@ -35,6 +54,7 @@ export async function GET() {
     priorities: PRIORITIES,
     tasks: visibleTasks,
     updates: visibleUpdates,
+    attachments: attachments.filter((attachment) => visibleTaskIds.has(attachment.taskId)),
     topics,
     assignees,
     permissions: admin ? permissions : permissions.filter((p) => p.email === user.email),
@@ -48,6 +68,13 @@ export async function POST(request: Request) {
   if (!user) return bad("Oturum gerekli", 401);
 
   const body = await request.json();
+  let attachments: AttachmentUpload[];
+  try {
+    attachments = attachmentsFromBody(body);
+  } catch (err) {
+    return bad(err instanceof Error ? err.message : "Ek dosyalar okunamadı");
+  }
+
   const permissions = await getPermissions();
   const konuGrubu = String(body.konuGrubu || "").trim();
 
@@ -76,6 +103,14 @@ export async function POST(request: Request) {
   };
 
   await appendTask(task);
+  await appendAttachments({
+    parentType: "Task",
+    parentId: task.id,
+    taskId: task.id,
+    files: attachments,
+    uploadedBy: user.email,
+    uploadedAt: at
+  });
   return NextResponse.json({ task }, { status: 201 });
 }
 

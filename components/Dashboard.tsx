@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { PRIORITIES, STATUSES, UPDATE_TYPES, type Assignee, type Capability, type Permission, type Task, type TaskUpdate, type Topic, type User } from "@/lib/types";
+import { PRIORITIES, STATUSES, UPDATE_TYPES, type Assignee, type Attachment, type AttachmentUpload, type Capability, type Permission, type Task, type TaskUpdate, type Topic, type User } from "@/lib/types";
 
 type Payload = {
   user: User;
@@ -10,6 +10,7 @@ type Payload = {
   priorities: string[];
   tasks: Task[];
   updates: TaskUpdate[];
+  attachments: Attachment[];
   topics: Topic[];
   assignees: Assignee[];
   permissions: Permission[];
@@ -18,6 +19,9 @@ type Payload = {
 };
 
 type TaskDraft = Partial<Task> & { id?: string };
+type UploadPayload = Omit<AttachmentUpload, "data"> & { data: string };
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const emptyDraft: TaskDraft = {
   konuGrubu: "",
@@ -61,6 +65,35 @@ function overdue(task: Task) {
   return new Date(task.hedefTarih) < today;
 }
 
+function formatBytes(size: number) {
+  if (!size) return "";
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function attachmentPreviewUrl(attachment: Attachment) {
+  if (!attachment.mimeType.startsWith("image/") || !attachment.driveFileId) return "";
+  return `https://drive.google.com/thumbnail?id=${attachment.driveFileId}&sz=w500`;
+}
+
+async function fileToUpload(file: File): Promise<UploadPayload> {
+  if (file.size > MAX_FILE_SIZE) throw new Error(`${file.name} 10 MB sınırını aşıyor`);
+  const buffer = await file.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+  return {
+    fileName: file.name,
+    mimeType: file.type || "application/octet-stream",
+    size: file.size,
+    data: btoa(binary)
+  };
+}
+
+async function filesToUploads(files: File[]) {
+  return Promise.all(files.map(fileToUpload));
+}
+
 export default function Dashboard() {
   const [payload, setPayload] = useState<Payload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,6 +103,8 @@ export default function Dashboard() {
   const [draft, setDraft] = useState<TaskDraft>(emptyDraft);
   const [showForm, setShowForm] = useState(false);
   const [comment, setComment] = useState({ tip: "Güncelleme", metin: "", ekLink: "" });
+  const [taskFiles, setTaskFiles] = useState<File[]>([]);
+  const [updateFiles, setUpdateFiles] = useState<File[]>([]);
   const [filters, setFilters] = useState({ search: "", topic: "", assignee: "", status: "", priority: "", due: "" });
 
   const load = useCallback(async () => {
@@ -93,6 +128,7 @@ export default function Dashboard() {
 
   const tasks = useMemo(() => payload?.tasks || [], [payload?.tasks]);
   const updates = useMemo(() => payload?.updates || [], [payload?.updates]);
+  const attachments = useMemo(() => payload?.attachments || [], [payload?.attachments]);
   const topics = useMemo(() => payload?.topics || [], [payload?.topics]);
   const assigneeRows = useMemo(() => payload?.assignees || [], [payload?.assignees]);
   const capabilities = useMemo(() => payload?.capabilities || [], [payload?.capabilities]);
@@ -142,12 +178,14 @@ export default function Dashboard() {
   function openNewTask() {
     setDraft({ ...emptyDraft, konuGrubu: canCreateTopics[0] || topicNames[0] || "" });
     setSelected(null);
+    setTaskFiles([]);
     setShowForm(true);
   }
 
   function openEditTask(task: Task) {
     setDraft(task);
     setSelected(task);
+    setTaskFiles([]);
     setShowForm(true);
   }
 
@@ -157,14 +195,16 @@ export default function Dashboard() {
     const method = draft.id ? "PATCH" : "POST";
     const url = draft.id ? `/api/tasks/${draft.id}` : "/api/tasks";
     try {
+      const uploadPayloads = await filesToUploads(taskFiles);
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draft)
+        body: JSON.stringify({ ...draft, attachments: uploadPayloads })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Kayıt yapılamadı");
       setShowForm(false);
+      setTaskFiles([]);
       setSelected(data.task || null);
       await load();
     } catch (err) {
@@ -177,14 +217,16 @@ export default function Dashboard() {
     if (!selected) return;
     setError("");
     try {
+      const uploadPayloads = await filesToUploads(updateFiles);
       const res = await fetch("/api/updates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...comment, taskId: selected.id })
+        body: JSON.stringify({ ...comment, taskId: selected.id, attachments: uploadPayloads })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Güncelleme eklenemedi");
       setComment({ tip: "Güncelleme", metin: "", ekLink: "" });
+      setUpdateFiles([]);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bilinmeyen hata");
@@ -192,6 +234,8 @@ export default function Dashboard() {
   }
 
   const selectedUpdates = selected ? updates.filter((u) => u.taskId === selected.id) : [];
+  const selectedAttachments = selected ? attachments.filter((attachment) => attachment.taskId === selected.id) : [];
+  const taskAttachments = selectedAttachments.filter((attachment) => attachment.parentType === "Task");
 
   return (
     <main className="app-shell">
@@ -407,6 +451,22 @@ export default function Dashboard() {
                   <label className="full">Son güncelleme özeti
                     <textarea className="textarea" value={draft.sonGuncelleme || ""} onChange={(e) => setDraft({ ...draft, sonGuncelleme: e.target.value })} />
                   </label>
+                  <label className="full">Fotoğraf / dosya ekle
+                    <input
+                      className="field"
+                      type="file"
+                      multiple
+                      onChange={(e) => setTaskFiles(Array.from(e.target.files || []))}
+                    />
+                    <span className="muted">Dosya başına en fazla 10 MB. Fotoğraf, PDF, Excel, Word ve benzeri dosyalar Google Drive&apos;a yüklenir.</span>
+                  </label>
+                  {taskFiles.length > 0 && (
+                    <div className="full attachment-picks">
+                      {taskFiles.map((file) => (
+                        <span className="badge blue" key={`${file.name}-${file.size}`}>{file.name} {formatBytes(file.size)}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button className="btn" type="submit">Kaydet</button>
               </form>
@@ -423,6 +483,26 @@ export default function Dashboard() {
                 <div className="progress"><span style={{ width: `${selected.ilerleme || 0}%` }} /></div>
                 <p className="muted">İlerleme: %{selected.ilerleme || 0} · Oluşturan: {selected.createdBy} · Güncelleyen: {selected.updatedBy}</p>
 
+                <h3>Ekler</h3>
+                <div className="attachments-grid">
+                  {taskAttachments.map((attachment) => (
+                    <a className="attachment-card" href={attachment.driveUrl} target="_blank" rel="noreferrer" key={attachment.id}>
+                      {attachmentPreviewUrl(attachment) ? (
+                        <div
+                          className="attachment-preview"
+                          aria-label={attachment.fileName}
+                          style={{ backgroundImage: `url(${attachmentPreviewUrl(attachment)})` }}
+                        />
+                      ) : (
+                        <div className="file-icon">{attachment.fileName.split(".").pop()?.slice(0, 4).toLocaleUpperCase("tr-TR") || "DOS"}</div>
+                      )}
+                      <strong>{attachment.fileName}</strong>
+                      <span className="muted">{formatBytes(attachment.size)} · {formatDate(attachment.uploadedAt)}</span>
+                    </a>
+                  ))}
+                  {taskAttachments.length === 0 && <div className="empty">Bu takip konusuna doğrudan eklenmiş dosya yok.</div>}
+                </div>
+
                 <h3>Güncelleme / Fikir / Soru</h3>
                 <form onSubmit={addUpdate} className="grid">
                   <select className="field" value={comment.tip} onChange={(e) => setComment({ ...comment, tip: e.target.value })}>
@@ -430,18 +510,45 @@ export default function Dashboard() {
                   </select>
                   <textarea className="textarea" placeholder="Gelişme, fikir, soru, risk veya karar notu..." value={comment.metin} onChange={(e) => setComment({ ...comment, metin: e.target.value })} />
                   <input className="field" placeholder="Opsiyonel link" value={comment.ekLink} onChange={(e) => setComment({ ...comment, ekLink: e.target.value })} />
+                  <label>Fotoğraf / dosya
+                    <input
+                      className="field"
+                      type="file"
+                      multiple
+                      onChange={(e) => setUpdateFiles(Array.from(e.target.files || []))}
+                    />
+                  </label>
+                  {updateFiles.length > 0 && (
+                    <div className="attachment-picks">
+                      {updateFiles.map((file) => (
+                        <span className="badge blue" key={`${file.name}-${file.size}`}>{file.name} {formatBytes(file.size)}</span>
+                      ))}
+                    </div>
+                  )}
                   <button className="btn" type="submit">Ekle</button>
                 </form>
 
                 <div className="update-list">
-                  {selectedUpdates.map((u) => (
-                    <div className="update-item" key={u.id}>
-                      <span className="badge">{u.tip}</span>
-                      <p>{u.metin}</p>
-                      {u.ekLink && <a className="muted" href={u.ekLink} target="_blank">Ek link</a>}
-                      <div className="muted">{u.yazarAd || u.yazarEmail} · {formatDate(u.createdAt)}</div>
-                    </div>
-                  ))}
+                  {selectedUpdates.map((u) => {
+                    const updateAttachments = selectedAttachments.filter((attachment) => attachment.parentType === "Update" && attachment.parentId === u.id);
+                    return (
+                      <div className="update-item" key={u.id}>
+                        <span className="badge">{u.tip}</span>
+                        <p>{u.metin}</p>
+                        {u.ekLink && <a className="muted" href={u.ekLink} target="_blank" rel="noreferrer">Ek link</a>}
+                        {updateAttachments.length > 0 && (
+                          <div className="update-attachments">
+                            {updateAttachments.map((attachment) => (
+                              <a href={attachment.driveUrl} target="_blank" rel="noreferrer" key={attachment.id}>
+                                {attachment.mimeType.startsWith("image/") ? "Fotoğraf" : "Dosya"}: {attachment.fileName}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                        <div className="muted">{u.yazarAd || u.yazarEmail} · {formatDate(u.createdAt)}</div>
+                      </div>
+                    );
+                  })}
                   {selectedUpdates.length === 0 && <div className="empty">Henüz güncelleme yok.</div>}
                 </div>
               </section>

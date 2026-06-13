@@ -26,6 +26,7 @@ Asagidaki sekmeler ayni spreadsheet icinde hazir olacak:
 - `Updates`
 - `Topics`
 - `Assignees`
+- `Attachments`
 - `Permissions`
 
 Kontrol:
@@ -37,6 +38,8 @@ Kontrol:
 - [ ] Web App deploy et: Execute as `Me`, access `Anyone`
 - [ ] Web App URL degerini not et
 - [ ] Ilk cagri ile sekmelerin/basliklarin olustugunu kontrol et
+- [ ] Dosya ekleri icin Apps Script kodunu yeniden deploy et
+- [ ] Google Drive'da `Endura Is Takip Dosyalari` veya `Endura İş Takip Dosyaları` klasorunun olustugunu kontrol et
 
 Alternatif ileri yol:
 

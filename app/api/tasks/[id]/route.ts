@@ -1,11 +1,29 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { findTaskById, getPermissions, updateTask } from "@/lib/sheets";
+import { appendAttachments, findTaskById, getPermissions, updateTask } from "@/lib/sheets";
 import { canCloseTask, canUpdateTask, canViewTask } from "@/lib/permissions";
-import { PRIORITIES, STATUSES, type Priority, type Status, type Task } from "@/lib/types";
+import { PRIORITIES, STATUSES, type AttachmentUpload, type Priority, type Status, type Task } from "@/lib/types";
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 
 function bad(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
+}
+
+function attachmentsFromBody(body: Record<string, unknown>): AttachmentUpload[] {
+  if (!Array.isArray(body.attachments)) return [];
+  return body.attachments.map((item) => {
+    const file = (item || {}) as Record<string, unknown>;
+    const attachment = {
+      fileName: String(file.fileName || "").trim(),
+      mimeType: String(file.mimeType || "application/octet-stream").trim(),
+      size: Number(file.size || 0),
+      data: String(file.data || "")
+    };
+    if (!attachment.fileName || !attachment.data) throw new Error("Ek dosya bilgisi eksik");
+    if (attachment.size > MAX_ATTACHMENT_SIZE) throw new Error("Dosya başına en fazla 10 MB yüklenebilir");
+    return attachment;
+  });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -19,6 +37,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!canUpdateTask(user, permissions, task)) return bad("Bu kaydı güncelleme yetkiniz yok", 403);
 
   const body = await request.json();
+  let attachments: AttachmentUpload[];
+  try {
+    attachments = attachmentsFromBody(body);
+  } catch (err) {
+    return bad(err instanceof Error ? err.message : "Ek dosyalar okunamadı");
+  }
+
   const nextStatus = body.statu && STATUSES.includes(body.statu) ? (body.statu as Status) : task.statu;
   if (nextStatus === "Tamamlandı" && !canCloseTask(user, permissions, task)) {
     return bad("Tamamlama yetkiniz yok", 403);
@@ -43,5 +68,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   };
 
   await updateTask(updated);
+  await appendAttachments({
+    parentType: "Task",
+    parentId: updated.id,
+    taskId: updated.id,
+    files: attachments,
+    uploadedBy: user.email,
+    uploadedAt: updated.updatedAt
+  });
   return NextResponse.json({ task: updated });
 }

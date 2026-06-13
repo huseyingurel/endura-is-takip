@@ -23,10 +23,11 @@ Birinci spreadsheet içinde şu sekmeler olmalı:
 2. `Updates`
 3. `Topics`
 4. `Assignees`
+5. `Attachments`
 
 İkinci spreadsheet veya aynı spreadsheet içinde:
 
-5. `Permissions`
+6. `Permissions`
 
 Örnek CSV dosyaları `sheets/` klasöründedir.
 
@@ -56,9 +57,11 @@ Script ilk çağrıda şu sekmeleri ve başlıkları oluşturur:
 - `Updates`
 - `Topics`
 - `Assignees`
+- `Attachments`
 - `Permissions`
 
 `Topics`, `Assignees` ve `Permissions` sekmelerini daha sonra doğrudan Google Sheets üzerinden düzenleyebilirsin.
+Dosya ve fotoğraf ekleri Google Drive'da `Endura İş Takip Dosyaları` klasöründe saklanır; `Attachments` sekmesinde dosya linkleri ve ilişkili kayıt bilgileri tutulur.
 
 ### Alternatif: Google Cloud service account
 

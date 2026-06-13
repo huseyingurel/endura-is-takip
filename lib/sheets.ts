@@ -1,11 +1,15 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  ATTACHMENT_HEADERS,
   ASSIGNEE_HEADERS,
   PERMISSION_HEADERS,
   TASK_HEADERS,
   TOPIC_HEADERS,
   UPDATE_HEADERS,
+  type Attachment,
+  type AttachmentParentType,
+  type AttachmentUpload,
   type Assignee,
   type Permission,
   type Task,
@@ -18,6 +22,7 @@ const UPDATES_SHEET = "Updates";
 const TOPICS_SHEET = "Topics";
 const PERMISSIONS_SHEET = "Permissions";
 const ASSIGNEES_SHEET = "Assignees";
+const ATTACHMENTS_SHEET = "Attachments";
 
 type SheetBundle = {
   tasks: Task[];
@@ -25,6 +30,7 @@ type SheetBundle = {
   permissions: Permission[];
   topics: Topic[];
   assignees: Assignee[];
+  attachments: Attachment[];
 };
 
 type SheetName =
@@ -32,7 +38,8 @@ type SheetName =
   | typeof UPDATES_SHEET
   | typeof TOPICS_SHEET
   | typeof PERMISSIONS_SHEET
-  | typeof ASSIGNEES_SHEET;
+  | typeof ASSIGNEES_SHEET
+  | typeof ATTACHMENTS_SHEET;
 
 function appsScriptUrl() {
   return (process.env.GOOGLE_APPS_SCRIPT_URL || "").trim();
@@ -223,12 +230,25 @@ function normalizeAssignee(row: unknown[], headers = ASSIGNEE_HEADERS): Assignee
   };
 }
 
+function normalizeAttachment(row: unknown[], headers = ATTACHMENT_HEADERS): Attachment {
+  const attachment = rowToObject<Attachment>(ATTACHMENT_HEADERS, headers, row);
+  return {
+    ...attachment,
+    parentType: attachment.parentType === "Update" ? "Update" : "Task",
+    size: numberValue(attachment.size)
+  };
+}
+
 function taskToRow(task: Task) {
   return TASK_HEADERS.map((key) => String((task as Record<string, unknown>)[key] ?? ""));
 }
 
 function updateToRow(update: TaskUpdate) {
   return UPDATE_HEADERS.map((key) => String((update as Record<string, unknown>)[key] ?? ""));
+}
+
+function attachmentToRow(attachment: Attachment) {
+  return ATTACHMENT_HEADERS.map((key) => String((attachment as Record<string, unknown>)[key] ?? ""));
 }
 
 function objectToRow(headers: readonly string[], item: unknown) {
@@ -271,6 +291,7 @@ export async function getDataBundle(): Promise<SheetBundle> {
       permissions?: unknown[];
       topics?: unknown[];
       assignees?: unknown[];
+      attachments?: unknown[];
     }>("readAll");
 
     return {
@@ -278,19 +299,21 @@ export async function getDataBundle(): Promise<SheetBundle> {
       updates: (data.updates || []).map((item) => normalizeUpdate(objectToRow(UPDATE_HEADERS, item))),
       permissions: (data.permissions || []).map((item) => normalizePermission(objectToRow(PERMISSION_HEADERS, item))),
       topics: (data.topics || []).map((item) => normalizeTopic(objectToRow(TOPIC_HEADERS, item))),
-      assignees: (data.assignees || []).map((item) => normalizeAssignee(objectToRow(ASSIGNEE_HEADERS, item)))
+      assignees: (data.assignees || []).map((item) => normalizeAssignee(objectToRow(ASSIGNEE_HEADERS, item))),
+      attachments: (data.attachments || []).map((item) => normalizeAttachment(objectToRow(ATTACHMENT_HEADERS, item)))
     };
   }
 
-  const [tasks, updates, permissions, topics, assignees] = await Promise.all([
+  const [tasks, updates, permissions, topics, assignees, attachments] = await Promise.all([
     getTasks(),
     getUpdates(),
     getPermissions(),
     getTopics(),
-    getAssignees()
+    getAssignees(),
+    getAttachments()
   ]);
 
-  return { tasks, updates, permissions, topics, assignees };
+  return { tasks, updates, permissions, topics, assignees, attachments };
 }
 
 async function getRows(spreadsheetId: string, range: string): Promise<unknown[][]> {
@@ -364,6 +387,19 @@ export async function getAssignees(): Promise<Assignee[]> {
   return rows.slice(1).filter((r) => r.length > 0 && r[0]).map((row) => normalizeAssignee(row, headers));
 }
 
+export async function getAttachments(): Promise<Attachment[]> {
+  if (shouldUseAppsScript()) return (await getDataBundle()).attachments;
+
+  if (shouldUseLocalCsv()) {
+    const { headers, dataRows } = await readLocalSheet(ATTACHMENTS_SHEET);
+    return dataRows.filter((r) => r.length > 0 && r[0]).map((row) => normalizeAttachment(row, headers));
+  }
+
+  const rows = await getRows(tasksSpreadsheetId(), `${ATTACHMENTS_SHEET}!A:K`);
+  const headers = headerRow(rows[0], ATTACHMENT_HEADERS);
+  return rows.slice(1).filter((r) => r.length > 0 && r[0]).map((row) => normalizeAttachment(row, headers));
+}
+
 export async function appendTask(task: Task) {
   if (shouldUseAppsScript()) {
     await callAppsScript("appendTask", { task });
@@ -404,6 +440,56 @@ export async function appendUpdate(update: TaskUpdate) {
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [updateToRow(update)] }
   });
+}
+
+export async function appendAttachments(params: {
+  parentType: AttachmentParentType;
+  parentId: string;
+  taskId: string;
+  files: AttachmentUpload[];
+  uploadedBy: string;
+  uploadedAt?: string;
+}) {
+  const files = params.files.filter((file) => file.fileName && file.data);
+  if (files.length === 0) return [];
+
+  if (shouldUseAppsScript()) {
+    const result = await callAppsScript<{ attachments?: Attachment[] }>("appendAttachments", {
+      ...params,
+      files
+    });
+    return result.attachments || [];
+  }
+
+  const at = params.uploadedAt || new Date().toISOString();
+  const attachments: Attachment[] = files.map((file) => ({
+    id: crypto.randomUUID(),
+    parentType: params.parentType,
+    parentId: params.parentId,
+    taskId: params.taskId,
+    fileName: file.fileName,
+    mimeType: file.mimeType,
+    size: file.size,
+    driveFileId: "",
+    driveUrl: file.data,
+    uploadedBy: params.uploadedBy,
+    uploadedAt: at
+  }));
+
+  if (shouldUseLocalCsv()) {
+    const existing = await getAttachments();
+    await writeLocalSheet(ATTACHMENTS_SHEET, ATTACHMENT_HEADERS, [...existing, ...attachments].map(attachmentToRow));
+    return attachments;
+  }
+
+  const sheets = await sheetsClient();
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: tasksSpreadsheetId(),
+    range: `${ATTACHMENTS_SHEET}!A:K`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: attachments.map(attachmentToRow) }
+  });
+  return attachments;
 }
 
 export async function updateTask(task: Task) {
@@ -452,7 +538,8 @@ export async function initializeHeaders() {
       writeLocalSheet(UPDATES_SHEET, UPDATE_HEADERS, (await getUpdates()).map(updateToRow)),
       writeLocalSheet(TOPICS_SHEET, TOPIC_HEADERS, (await getTopics()).map((topic) => TOPIC_HEADERS.map((key) => String((topic as Record<string, unknown>)[key] ?? "")))),
       writeLocalSheet(PERMISSIONS_SHEET, PERMISSION_HEADERS, (await getPermissions()).map((permission) => PERMISSION_HEADERS.map((key) => String((permission as Record<string, unknown>)[key] ?? "")))),
-      writeLocalSheet(ASSIGNEES_SHEET, ASSIGNEE_HEADERS, (await getAssignees()).map((assignee) => ASSIGNEE_HEADERS.map((key) => String((assignee as Record<string, unknown>)[key] ?? ""))))
+      writeLocalSheet(ASSIGNEES_SHEET, ASSIGNEE_HEADERS, (await getAssignees()).map((assignee) => ASSIGNEE_HEADERS.map((key) => String((assignee as Record<string, unknown>)[key] ?? "")))),
+      writeLocalSheet(ATTACHMENTS_SHEET, ATTACHMENT_HEADERS, (await getAttachments()).map(attachmentToRow))
     ]);
     return;
   }
@@ -488,6 +575,12 @@ export async function initializeHeaders() {
       range: `${ASSIGNEES_SHEET}!A1:C1`,
       valueInputOption: "RAW",
       requestBody: { values: [ASSIGNEE_HEADERS] }
+    }),
+    sheets.spreadsheets.values.update({
+      spreadsheetId: tasksSpreadsheetId(),
+      range: `${ATTACHMENTS_SHEET}!A1:K1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [ATTACHMENT_HEADERS] }
     })
   ]);
 }

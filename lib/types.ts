@@ -74,6 +74,29 @@ export type Assignee = {
   aktif: boolean;
 };
 
+export type AttachmentParentType = "Task" | "Update";
+
+export type Attachment = {
+  id: string;
+  parentType: AttachmentParentType;
+  parentId: string;
+  taskId: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  driveFileId: string;
+  driveUrl: string;
+  uploadedBy: string;
+  uploadedAt: string;
+};
+
+export type AttachmentUpload = {
+  fileName: string;
+  mimeType: string;
+  size: number;
+  data: string;
+};
+
 export type Capability = {
   konuGrubu: string;
   canView: boolean;
@@ -130,3 +153,16 @@ export const PERMISSION_HEADERS = [
 
 export const TOPIC_HEADERS = ["konuGrubu", "aciklama", "sahipEmail", "aktif"];
 export const ASSIGNEE_HEADERS = ["adSoyad", "email", "aktif"];
+export const ATTACHMENT_HEADERS = [
+  "id",
+  "parentType",
+  "parentId",
+  "taskId",
+  "fileName",
+  "mimeType",
+  "size",
+  "driveFileId",
+  "driveUrl",
+  "uploadedBy",
+  "uploadedAt"
+];

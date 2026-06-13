@@ -71,6 +71,14 @@ tr:hover td { background: #fbfdff; }
 .form-grid .full { grid-column: 1 / -1; }
 .update-list { display: grid; gap: 10px; margin-top: 14px; }
 .update-item { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: #fafafa; }
+.attachments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin: 10px 0 18px; }
+.attachment-card { display: grid; gap: 8px; align-content: start; min-height: 150px; border: 1px solid var(--line); border-radius: 14px; padding: 10px; background: #fafafa; text-decoration: none; }
+.attachment-preview { width: 100%; aspect-ratio: 4 / 3; border-radius: 10px; background-color: #e5e7eb; background-size: cover; background-position: center; }
+.attachment-card strong { overflow-wrap: anywhere; }
+.file-icon { display: grid; place-items: center; width: 100%; aspect-ratio: 4 / 3; border-radius: 10px; background: #e2e8f0; color: #334155; font-weight: 900; letter-spacing: .04em; }
+.attachment-picks { display: flex; gap: 8px; flex-wrap: wrap; }
+.update-attachments { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.update-attachments a { border: 1px solid var(--line); border-radius: 999px; padding: 6px 9px; background: white; color: #1e40af; font-size: 13px; text-decoration: none; }
 .error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 12px; border-radius: 12px; margin: 12px 0; }
 .empty { color: var(--muted); text-align: center; padding: 28px; }
 @media (max-width: 980px) {
