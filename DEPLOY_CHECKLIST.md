@@ -13,10 +13,10 @@
 
 ## 2. GitHub
 
-- [ ] Yeni GitHub repo olustur
-- [ ] Remote ekle
-- [ ] Ilk commit
-- [ ] `main` branch push
+- [x] Yeni GitHub repo olustur
+- [x] Remote ekle
+- [x] Ilk commit
+- [x] `main` branch push
 
 ## 3. Google Sheets
 
@@ -64,15 +64,19 @@ Gerekli degiskenler:
 
 Vercel Git import sirasinda:
 
-- Proje adini kontrol et
-- Framework preset olarak `Next.js` sec
-- Root directory dogruysa oldugu gibi birak
-- Environment variables alanini doldur
-- Deploy baslat
+- [x] Proje adini kontrol et
+- [x] Framework preset olarak `Next.js` sec
+- [x] Root directory dogruysa oldugu gibi birak
+- [ ] Environment variables alanini doldur
+- [x] Deploy baslat
+
+Production URL:
+
+- `https://endura-is-takip.vercel.app`
 
 ## 7. Smoke Test
 
-- [ ] Ana sayfa aciliyor
+- [x] Ana sayfa aciliyor
 - [ ] `Topics` listesi geliyor
 - [ ] `Assignees` listesi geliyor
 - [ ] Google login calisiyor
