@@ -2,11 +2,8 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import {
   appendTask,
-  getAssignees,
+  getDataBundle,
   getPermissions,
-  getTasks,
-  getTopics,
-  getUpdates,
   initializeHeaders
 } from "@/lib/sheets";
 import { canCreateInTopic, canViewTask, capabilityForTopic, isAdmin } from "@/lib/permissions";
@@ -24,13 +21,7 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return bad("Oturum gerekli", 401);
 
-  const [tasks, updates, permissions, topics, assignees] = await Promise.all([
-    getTasks(),
-    getUpdates(),
-    getPermissions(),
-    getTopics(),
-    getAssignees()
-  ]);
+  const { tasks, updates, permissions, topics, assignees } = await getDataBundle();
 
   const visibleTasks = tasks.filter((task) => canViewTask(user, permissions, task));
   const visibleTaskIds = new Set(visibleTasks.map((task) => task.id));

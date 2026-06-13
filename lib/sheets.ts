@@ -19,12 +19,32 @@ const TOPICS_SHEET = "Topics";
 const PERMISSIONS_SHEET = "Permissions";
 const ASSIGNEES_SHEET = "Assignees";
 
+type SheetBundle = {
+  tasks: Task[];
+  updates: TaskUpdate[];
+  permissions: Permission[];
+  topics: Topic[];
+  assignees: Assignee[];
+};
+
 type SheetName =
   | typeof TASKS_SHEET
   | typeof UPDATES_SHEET
   | typeof TOPICS_SHEET
   | typeof PERMISSIONS_SHEET
   | typeof ASSIGNEES_SHEET;
+
+function appsScriptUrl() {
+  return (process.env.GOOGLE_APPS_SCRIPT_URL || "").trim();
+}
+
+function appsScriptToken() {
+  return (process.env.GOOGLE_APPS_SCRIPT_TOKEN || "").trim();
+}
+
+function shouldUseAppsScript() {
+  return Boolean(appsScriptUrl());
+}
 
 function shouldUseLocalCsv() {
   const email = process.env.GOOGLE_SHEETS_CLIENT_EMAIL || "";
@@ -211,6 +231,68 @@ function updateToRow(update: TaskUpdate) {
   return UPDATE_HEADERS.map((key) => String((update as Record<string, unknown>)[key] ?? ""));
 }
 
+function objectToRow(headers: readonly string[], item: unknown) {
+  const record = (item || {}) as Record<string, unknown>;
+  return headers.map((key) => record[key] ?? "");
+}
+
+async function callAppsScript<T>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
+  const response = await fetch(appsScriptUrl(), {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      action,
+      token: appsScriptToken(),
+      ...payload
+    }),
+    cache: "no-store"
+  });
+
+  const text = await response.text();
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(text || "{}") as Record<string, unknown>;
+  } catch {
+    throw new Error(`Apps Script yanıtı JSON değil: ${text.slice(0, 160)}`);
+  }
+
+  if (!response.ok || data.ok === false) {
+    throw new Error(String(data.error || `Apps Script isteği başarısız: ${response.status}`));
+  }
+
+  return data as T;
+}
+
+export async function getDataBundle(): Promise<SheetBundle> {
+  if (shouldUseAppsScript()) {
+    const data = await callAppsScript<{
+      tasks?: unknown[];
+      updates?: unknown[];
+      permissions?: unknown[];
+      topics?: unknown[];
+      assignees?: unknown[];
+    }>("readAll");
+
+    return {
+      tasks: (data.tasks || []).map((item) => normalizeTask(objectToRow(TASK_HEADERS, item))),
+      updates: (data.updates || []).map((item) => normalizeUpdate(objectToRow(UPDATE_HEADERS, item))),
+      permissions: (data.permissions || []).map((item) => normalizePermission(objectToRow(PERMISSION_HEADERS, item))),
+      topics: (data.topics || []).map((item) => normalizeTopic(objectToRow(TOPIC_HEADERS, item))),
+      assignees: (data.assignees || []).map((item) => normalizeAssignee(objectToRow(ASSIGNEE_HEADERS, item)))
+    };
+  }
+
+  const [tasks, updates, permissions, topics, assignees] = await Promise.all([
+    getTasks(),
+    getUpdates(),
+    getPermissions(),
+    getTopics(),
+    getAssignees()
+  ]);
+
+  return { tasks, updates, permissions, topics, assignees };
+}
+
 async function getRows(spreadsheetId: string, range: string): Promise<unknown[][]> {
   const sheets = await sheetsClient();
   const result = await sheets.spreadsheets.values.get({ spreadsheetId, range });
@@ -218,6 +300,8 @@ async function getRows(spreadsheetId: string, range: string): Promise<unknown[][
 }
 
 export async function getTasks(): Promise<Task[]> {
+  if (shouldUseAppsScript()) return (await getDataBundle()).tasks;
+
   if (shouldUseLocalCsv()) {
     const { headers, dataRows } = await readLocalSheet(TASKS_SHEET);
     return dataRows.filter((r) => r.length > 0 && r[0]).map((row) => normalizeTask(row, headers));
@@ -229,6 +313,8 @@ export async function getTasks(): Promise<Task[]> {
 }
 
 export async function getUpdates(): Promise<TaskUpdate[]> {
+  if (shouldUseAppsScript()) return (await getDataBundle()).updates;
+
   if (shouldUseLocalCsv()) {
     const { headers, dataRows } = await readLocalSheet(UPDATES_SHEET);
     return dataRows.filter((r) => r.length > 0 && r[0]).map((row) => normalizeUpdate(row, headers));
@@ -240,6 +326,8 @@ export async function getUpdates(): Promise<TaskUpdate[]> {
 }
 
 export async function getPermissions(): Promise<Permission[]> {
+  if (shouldUseAppsScript()) return (await getDataBundle()).permissions;
+
   if (shouldUseLocalCsv()) {
     const { headers, dataRows } = await readLocalSheet(PERMISSIONS_SHEET);
     return dataRows.filter((r) => r.length > 0 && r[0]).map((row) => normalizePermission(row, headers));
@@ -251,6 +339,8 @@ export async function getPermissions(): Promise<Permission[]> {
 }
 
 export async function getTopics(): Promise<Topic[]> {
+  if (shouldUseAppsScript()) return (await getDataBundle()).topics;
+
   if (shouldUseLocalCsv()) {
     const { headers, dataRows } = await readLocalSheet(TOPICS_SHEET);
     return dataRows.filter((r) => r.length > 0 && r[0]).map((row) => normalizeTopic(row, headers));
@@ -262,6 +352,8 @@ export async function getTopics(): Promise<Topic[]> {
 }
 
 export async function getAssignees(): Promise<Assignee[]> {
+  if (shouldUseAppsScript()) return (await getDataBundle()).assignees;
+
   if (shouldUseLocalCsv()) {
     const { headers, dataRows } = await readLocalSheet(ASSIGNEES_SHEET);
     return dataRows.filter((r) => r.length > 0 && r[0]).map((row) => normalizeAssignee(row, headers));
@@ -273,6 +365,11 @@ export async function getAssignees(): Promise<Assignee[]> {
 }
 
 export async function appendTask(task: Task) {
+  if (shouldUseAppsScript()) {
+    await callAppsScript("appendTask", { task });
+    return;
+  }
+
   if (shouldUseLocalCsv()) {
     const tasks = await getTasks();
     await writeLocalSheet(TASKS_SHEET, TASK_HEADERS, [...tasks, task].map(taskToRow));
@@ -289,6 +386,11 @@ export async function appendTask(task: Task) {
 }
 
 export async function appendUpdate(update: TaskUpdate) {
+  if (shouldUseAppsScript()) {
+    await callAppsScript("appendUpdate", { update });
+    return;
+  }
+
   if (shouldUseLocalCsv()) {
     const updates = await getUpdates();
     await writeLocalSheet(UPDATES_SHEET, UPDATE_HEADERS, [...updates, update].map(updateToRow));
@@ -305,6 +407,11 @@ export async function appendUpdate(update: TaskUpdate) {
 }
 
 export async function updateTask(task: Task) {
+  if (shouldUseAppsScript()) {
+    await callAppsScript("updateTask", { task });
+    return;
+  }
+
   if (shouldUseLocalCsv()) {
     const tasks = await getTasks();
     const index = tasks.findIndex((item) => item.id === task.id);
@@ -334,6 +441,11 @@ export async function findTaskById(id: string) {
 }
 
 export async function initializeHeaders() {
+  if (shouldUseAppsScript()) {
+    await callAppsScript("ensureHeaders");
+    return;
+  }
+
   if (shouldUseLocalCsv()) {
     await Promise.all([
       writeLocalSheet(TASKS_SHEET, TASK_HEADERS, (await getTasks()).map(taskToRow)),

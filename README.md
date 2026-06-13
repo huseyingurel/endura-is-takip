@@ -5,13 +5,13 @@ Google Sheets veri tabanlı, Vercel üzerinde çalışacak basit iş takip uygul
 ## Mimari
 
 ```text
-Kullanıcı -> Next.js UI -> API Routes -> Google Sheets API -> Google Sheets
+Kullanıcı -> Next.js UI -> API Routes -> Apps Script Web App -> Google Sheets
                        -> NextAuth Google Login
 ```
 
 - Arayüz: Next.js App Router
 - Kimlik: Google Login / NextAuth
-- Veri: Google Sheets
+- Veri: Google Sheets. Kolay kurulumda Sheet'e bağlı Apps Script Web App kullanılır.
 - Yayın: Vercel
 - Yetki: `Permissions` sheet'i
 
@@ -32,7 +32,37 @@ Birinci spreadsheet içinde şu sekmeler olmalı:
 
 ## Kurulum
 
-### 1. Google Cloud
+### 1. Google Sheets + Apps Script
+
+Service account/private key kullanmadan en kolay yol budur.
+
+1. Google Sheet dosyasını aç:
+   - `https://docs.google.com/spreadsheets/d/1GypTun_lGQ-SgrCtmw4FScEgkH2Q3LE05HR2kTLGnps/edit`
+2. Menüden `Uzantılar > Apps Script` seç.
+3. `google-apps-script/Code.gs` içeriğini Apps Script editörüne yapıştır.
+4. Sol menüden `Project Settings > Script properties` altında şunları ekle:
+   - `APP_TOKEN`: uzun ve tahmin edilemez bir değer
+   - `SPREADSHEET_ID`: `1GypTun_lGQ-SgrCtmw4FScEgkH2Q3LE05HR2kTLGnps`
+5. `Deploy > New deployment > Web app` seç.
+6. Ayarlar:
+   - Execute as: `Me`
+   - Who has access: `Anyone`
+7. Web App URL'ini Vercel'de `GOOGLE_APPS_SCRIPT_URL` olarak ekle.
+8. `APP_TOKEN` değerini Vercel'de `GOOGLE_APPS_SCRIPT_TOKEN` olarak ekle.
+
+Script ilk çağrıda şu sekmeleri ve başlıkları oluşturur:
+
+- `Tasks`
+- `Updates`
+- `Topics`
+- `Assignees`
+- `Permissions`
+
+`Topics`, `Assignees` ve `Permissions` sekmelerini daha sonra doğrudan Google Sheets üzerinden düzenleyebilirsin.
+
+### Alternatif: Google Cloud service account
+
+Apps Script yerine doğrudan Google Sheets API kullanmak istersen:
 
 1. Google Cloud Console'da proje aç.
 2. Google Sheets API'yi etkinleştir.
@@ -63,6 +93,8 @@ Gerekli değişkenler:
 ```bash
 GOOGLE_TASKS_SPREADSHEET_ID=
 GOOGLE_PERMISSIONS_SPREADSHEET_ID=
+GOOGLE_APPS_SCRIPT_URL=
+GOOGLE_APPS_SCRIPT_TOKEN=
 GOOGLE_SHEETS_CLIENT_EMAIL=
 GOOGLE_SHEETS_PRIVATE_KEY=
 AUTH_URL=
@@ -80,7 +112,7 @@ DEV_USER_NAME=Hüseyin Gürel
 
 Production'da `DEV_USER_EMAIL` boş bırakılmalı.
 
-Google Sheets service account bilgileri yoksa uygulama lokal geliştirmede otomatik olarak `sheets/*.csv` dosyalarını kullanır. Bu modda yeni kayıt ve güncellemeler CSV dosyalarına yazılır; Google Sheets'e geçmek için service account env değerlerini eklemek yeterlidir.
+`GOOGLE_APPS_SCRIPT_URL` doluysa uygulama Google Sheets'e Apps Script üzerinden okur/yazar. Bu değer boşsa ve service account bilgileri yoksa lokal geliştirmede otomatik olarak `sheets/*.csv` dosyalarını kullanır.
 
 ### 4. Çalıştırma
 

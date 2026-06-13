@@ -18,7 +18,7 @@
 - [x] Ilk commit
 - [x] `main` branch push
 
-## 3. Google Sheets
+## 3. Google Sheets + Apps Script
 
 Asagidaki sekmeler ayni spreadsheet icinde hazir olacak:
 
@@ -29,6 +29,16 @@ Asagidaki sekmeler ayni spreadsheet icinde hazir olacak:
 - `Permissions`
 
 Kontrol:
+
+- [ ] Google Sheet icinde `Uzantilar > Apps Script` ac
+- [ ] `google-apps-script/Code.gs` kodunu yapistir
+- [ ] Script property olarak `SPREADSHEET_ID` ekle
+- [ ] Script property olarak `APP_TOKEN` ekle
+- [ ] Web App deploy et: Execute as `Me`, access `Anyone`
+- [ ] Web App URL degerini not et
+- [ ] Ilk cagri ile sekmelerin/basliklarin olustugunu kontrol et
+
+Alternatif ileri yol:
 
 - [ ] Service account olustur
 - [ ] Service account e-postasini sheet ile `Editor` olarak paylas
@@ -55,12 +65,17 @@ Gerekli degiskenler:
 
 - `GOOGLE_TASKS_SPREADSHEET_ID`
 - `GOOGLE_PERMISSIONS_SPREADSHEET_ID`
-- `GOOGLE_SHEETS_CLIENT_EMAIL`
-- `GOOGLE_SHEETS_PRIVATE_KEY`
+- `GOOGLE_APPS_SCRIPT_URL`
+- `GOOGLE_APPS_SCRIPT_TOKEN`
 - `AUTH_GOOGLE_ID`
 - `AUTH_GOOGLE_SECRET`
 - `AUTH_URL`
 - `AUTH_SECRET`
+
+Service account alternatifi kullanilirsa ayrica:
+
+- `GOOGLE_SHEETS_CLIENT_EMAIL`
+- `GOOGLE_SHEETS_PRIVATE_KEY`
 
 Durum:
 
@@ -68,10 +83,10 @@ Durum:
 - [x] `AUTH_SECRET`
 - [x] `GOOGLE_TASKS_SPREADSHEET_ID`
 - [x] `GOOGLE_PERMISSIONS_SPREADSHEET_ID`
+- [ ] `GOOGLE_APPS_SCRIPT_URL`
+- [ ] `GOOGLE_APPS_SCRIPT_TOKEN`
 - [ ] `AUTH_GOOGLE_ID`
 - [ ] `AUTH_GOOGLE_SECRET`
-- [ ] `GOOGLE_SHEETS_CLIENT_EMAIL`
-- [ ] `GOOGLE_SHEETS_PRIVATE_KEY`
 
 ## 6. Vercel Import
 
