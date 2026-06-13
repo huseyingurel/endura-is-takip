@@ -1,0 +1,5 @@
+email,adSoyad,rol,konuGrubu,canView,canCreate,canUpdate,canComment,canClose,canAdmin
+huseyin@example.com,Hüseyin Gürel,Yönetim,*,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE
+operasyon@example.com,Operasyon Ekibi,Operasyon,Sanduz Depo Hr.,TRUE,TRUE,TRUE,TRUE,FALSE,FALSE
+operasyon@example.com,Operasyon Ekibi,Operasyon,Moya Depo Giriş-Çıkış,TRUE,TRUE,TRUE,TRUE,TRUE,FALSE
+pazarlama@example.com,Pazarlama Ekibi,Pazarlama,Dijital,TRUE,TRUE,TRUE,TRUE,FALSE,FALSE

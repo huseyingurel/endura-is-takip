@@ -1,0 +1,4 @@
+id,taskId,tip,metin,yazarEmail,yazarAd,createdAt,ekLink
+U-001,T-001,Güncelleme,D-130 / Sanayi Mahallesi aksı öncelikli bölge olarak işaretlendi.,huseyin@example.com,Hüseyin Gürel,2026-06-11T10:00:00.000Z,
+U-002,T-001,Soru,"Yetkili satıcılara yakınlık mı, kira seviyesi mi ana kriter olacak?",operasyon@example.com,Operasyon Ekibi,2026-06-11T10:15:00.000Z,
+48a860a3-fafa-4f9f-af29-427ae2d48f8d,T-001,Soru,ne olacak bu,huseyin@example.com,Huseyin Gurel,2026-06-11T20:25:06.407Z,
