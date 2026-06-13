@@ -33,6 +33,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const [task, permissions] = await Promise.all([findTaskById(id), getPermissions()]);
   if (!task) return bad("Kayıt bulunamadı", 404);
+  if (task.deletedAt) return bad("Kayıt silinmiş", 404);
   if (!canViewTask(user, permissions, task)) return bad("Bu kaydı görüntüleme yetkiniz yok", 403);
   if (!canUpdateTask(user, permissions, task)) return bad("Bu kaydı güncelleme yetkiniz yok", 403);
 
@@ -48,6 +49,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (nextStatus === "Tamamlandı" && !canCloseTask(user, permissions, task)) {
     return bad("Tamamlama yetkiniz yok", 403);
   }
+  const action = String(body._action || "");
+  const at = new Date().toISOString();
 
   const updated: Task = {
     ...task,
@@ -63,8 +66,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     ilerleme: body.ilerleme !== undefined ? Number(body.ilerleme) : task.ilerleme,
     etiketler: body.etiketler !== undefined ? String(body.etiketler) : task.etiketler,
     sonGuncelleme: body.sonGuncelleme !== undefined ? String(body.sonGuncelleme) : task.sonGuncelleme,
-    updatedAt: new Date().toISOString(),
-    updatedBy: user.email
+    updatedAt: at,
+    updatedBy: user.email,
+    archivedAt: action === "archive" ? at : action === "unarchive" ? "" : task.archivedAt,
+    archivedBy: action === "archive" ? user.email : action === "unarchive" ? "" : task.archivedBy,
+    deletedAt: action === "delete" ? at : task.deletedAt,
+    deletedBy: action === "delete" ? user.email : task.deletedBy
   };
 
   await updateTask(updated);

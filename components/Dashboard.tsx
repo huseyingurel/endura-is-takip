@@ -107,7 +107,7 @@ export default function Dashboard() {
   const [updateFiles, setUpdateFiles] = useState<File[]>([]);
   const [savingTask, setSavingTask] = useState(false);
   const [savingUpdate, setSavingUpdate] = useState(false);
-  const [filters, setFilters] = useState({ search: "", topic: "", assignee: "", status: "", priority: "", due: "" });
+  const [filters, setFilters] = useState({ search: "", topic: "", assignee: "", status: "", priority: "", due: "", visibility: "active" });
   const savingTaskRef = useRef(false);
   const savingUpdateRef = useRef(false);
 
@@ -158,6 +158,9 @@ export default function Dashboard() {
   const filteredTasks = useMemo(() => {
     const q = filters.search.trim().toLocaleLowerCase("tr-TR");
     return tasks.filter((task) => {
+      if (task.deletedAt) return false;
+      if (filters.visibility === "active" && task.archivedAt) return false;
+      if (filters.visibility === "archived" && !task.archivedAt) return false;
       const text = `${task.konuGrubu} ${task.baslik} ${task.aciklama} ${task.gorevliAd} ${task.etiketler}`.toLocaleLowerCase("tr-TR");
       if (q && !text.includes(q)) return false;
       if (filters.topic && task.konuGrubu !== filters.topic) return false;
@@ -213,6 +216,34 @@ export default function Dashboard() {
       setShowForm(false);
       setTaskFiles([]);
       setSelected(data.task || null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Bilinmeyen hata");
+    } finally {
+      savingTaskRef.current = false;
+      setSavingTask(false);
+    }
+  }
+
+  async function applyTaskAction(action: "archive" | "unarchive" | "delete") {
+    if (!draft.id || savingTaskRef.current) return;
+    if (action === "delete" && !window.confirm("Bu takip konusu listeden kaldırılacak. Devam edilsin mi?")) return;
+    if (action === "archive" && !window.confirm("Bu takip konusu arşive taşınacak. Devam edilsin mi?")) return;
+
+    savingTaskRef.current = true;
+    setSavingTask(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/tasks/${draft.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...draft, _action: action, attachments: [] })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "İşlem yapılamadı");
+      setTaskFiles([]);
+      setSelected(action === "delete" ? null : data.task || null);
+      setShowForm(false);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bilinmeyen hata");
@@ -311,6 +342,11 @@ export default function Dashboard() {
                 <option value="">Tarih</option>
                 <option value="open">Açık konular</option>
                 <option value="overdue">Gecikenler</option>
+              </select>
+              <select className="field" value={filters.visibility} onChange={(e) => setFilters({ ...filters, visibility: e.target.value })}>
+                <option value="active">Aktif kayıtlar</option>
+                <option value="archived">Arşiv</option>
+                <option value="all">Aktif + arşiv</option>
               </select>
             </div>
 
@@ -484,7 +520,17 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
-                <button className="btn" type="submit" disabled={savingTask}>{savingTask ? "Kaydediliyor..." : "Kaydet"}</button>
+                <div className="form-actions">
+                  <button className="btn" type="submit" disabled={savingTask}>{savingTask ? "Kaydediliyor..." : "Kaydet"}</button>
+                  {draft.id && (
+                    <>
+                      <button className="btn secondary" type="button" disabled={savingTask} onClick={() => applyTaskAction(draft.archivedAt ? "unarchive" : "archive")}>
+                        {draft.archivedAt ? "Arşivden çıkar" : "Arşivle"}
+                      </button>
+                      <button className="btn danger" type="button" disabled={savingTask} onClick={() => applyTaskAction("delete")}>Sil</button>
+                    </>
+                  )}
+                </div>
               </form>
             )}
 

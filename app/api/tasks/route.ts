@@ -42,7 +42,7 @@ export async function GET() {
 
   const { tasks, updates, permissions, topics, assignees, attachments } = await getDataBundle();
 
-  const visibleTasks = tasks.filter((task) => canViewTask(user, permissions, task));
+  const visibleTasks = tasks.filter((task) => !task.deletedAt && canViewTask(user, permissions, task));
   const visibleTaskIds = new Set(visibleTasks.map((task) => task.id));
   const visibleUpdates = updates.filter((u) => visibleTaskIds.has(u.taskId));
   const admin = isAdmin(user, permissions);
@@ -99,7 +99,11 @@ export async function POST(request: Request) {
     createdAt: at,
     createdBy: user.email,
     updatedAt: at,
-    updatedBy: user.email
+    updatedBy: user.email,
+    archivedAt: "",
+    archivedBy: "",
+    deletedAt: "",
+    deletedBy: ""
   };
 
   await appendTask(task);

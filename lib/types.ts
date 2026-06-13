@@ -35,6 +35,10 @@ export type Task = {
   createdBy: string;
   updatedAt: string;
   updatedBy: string;
+  archivedAt: string;
+  archivedBy: string;
+  deletedAt: string;
+  deletedBy: string;
 };
 
 export type TaskUpdate = {
@@ -124,7 +128,11 @@ export const TASK_HEADERS = [
   "createdAt",
   "createdBy",
   "updatedAt",
-  "updatedBy"
+  "updatedBy",
+  "archivedAt",
+  "archivedBy",
+  "deletedAt",
+  "deletedBy"
 ];
 
 export const UPDATE_HEADERS = [

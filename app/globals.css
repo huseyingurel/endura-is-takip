@@ -40,7 +40,7 @@ button { cursor: pointer; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 16px; box-shadow: 0 10px 24px rgba(15, 23, 42, .04); }
 .kpi-label { color: var(--muted); font-size: 13px; }
 .kpi-value { font-size: 30px; font-weight: 800; margin-top: 6px; letter-spacing: -0.04em; }
-.toolbar { display: grid; grid-template-columns: 2fr repeat(5, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.toolbar { display: grid; grid-template-columns: 2fr repeat(6, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
 .field, .textarea { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: white; }
 .textarea { min-height: 90px; resize: vertical; }
 .tabs { display: flex; gap: 8px; margin: 16px 0; }
@@ -69,6 +69,7 @@ tr:hover td { background: #fbfdff; }
 .drawer-head { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-grid .full { grid-column: 1 / -1; }
+.form-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .update-list { display: grid; gap: 10px; margin-top: 14px; }
 .update-item { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: #fafafa; }
 .attachments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin: 10px 0 18px; }

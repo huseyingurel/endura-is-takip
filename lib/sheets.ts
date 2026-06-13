@@ -330,7 +330,7 @@ export async function getTasks(): Promise<Task[]> {
     return dataRows.filter((r) => r.length > 0 && r[0]).map((row) => normalizeTask(row, headers));
   }
 
-  const rows = await getRows(tasksSpreadsheetId(), `${TASKS_SHEET}!A:Q`);
+  const rows = await getRows(tasksSpreadsheetId(), `${TASKS_SHEET}!A:U`);
   const headers = headerRow(rows[0], TASK_HEADERS);
   return rows.slice(1).filter((r) => r.length > 0 && r[0]).map((row) => normalizeTask(row, headers));
 }
@@ -415,7 +415,7 @@ export async function appendTask(task: Task) {
   const sheets = await sheetsClient();
   await sheets.spreadsheets.values.append({
     spreadsheetId: tasksSpreadsheetId(),
-    range: `${TASKS_SHEET}!A:Q`,
+    range: `${TASKS_SHEET}!A:U`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [taskToRow(task)] }
   });
@@ -515,7 +515,7 @@ export async function updateTask(task: Task) {
   const sheets = await sheetsClient();
   await sheets.spreadsheets.values.update({
     spreadsheetId: tasksSpreadsheetId(),
-    range: `${TASKS_SHEET}!A${rowNumber}:Q${rowNumber}`,
+    range: `${TASKS_SHEET}!A${rowNumber}:U${rowNumber}`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [taskToRow(task)] }
   });
@@ -548,7 +548,7 @@ export async function initializeHeaders() {
   await Promise.all([
     sheets.spreadsheets.values.update({
       spreadsheetId: tasksSpreadsheetId(),
-      range: `${TASKS_SHEET}!A1:Q1`,
+      range: `${TASKS_SHEET}!A1:U1`,
       valueInputOption: "RAW",
       requestBody: { values: [TASK_HEADERS] }
     }),

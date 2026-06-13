@@ -1,3 +1,3 @@
-id,konuGrubu,baslik,aciklama,gorevliEmail,gorevliAd,oncelik,statu,baslangicTarihi,hedefTarih,ilerleme,etiketler,sonGuncelleme,createdAt,createdBy,updatedAt,updatedBy
+id,konuGrubu,baslik,aciklama,gorevliEmail,gorevliAd,oncelik,statu,baslangicTarihi,hedefTarih,ilerleme,etiketler,sonGuncelleme,createdAt,createdBy,updatedAt,updatedBy,archivedAt,archivedBy,deletedAt,deletedBy
 T-001,Endura Sevkan Satış,İzmit uygulama atölyesi fizibilitesi,PPF atölyesi kurulum ve işletme parametreleri,huseyin@example.com,Hüseyin Gürel,Yüksek,İlerliyor,2026-06-11,2026-06-20,35,"izmit,ppf,fizibilite",Soru: ne olacak bu,2026-06-11T09:00:00.000Z,huseyin@example.com,2026-06-11T20:25:06.407Z,huseyin@example.com
 T-002,Sanduz Depo Hr.,Kocaeli yetkili satıcı eşleştirmesi,Yetkili satıcı + Endura uygulama noktası ilişkisi,,Cihan Oktar,Normal,Başladı,2026-06-11,2026-06-18,10,"kocaeli,bayi",İlk liste açıldı,2026-06-11T09:15:00.000Z,huseyin@example.com,2026-06-11T09:15:00.000Z,huseyin@example.com

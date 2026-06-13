@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     getPermissions()
   ]);
   if (!task) return bad("Kayıt bulunamadı", 404);
+  if (task.deletedAt) return bad("Kayıt silinmiş", 404);
   if (!canViewTask(user, permissions, task)) return bad("Bu kaydı görüntüleme yetkiniz yok", 403);
   return NextResponse.json({ updates: updates.filter((u) => u.taskId === taskId) });
 }
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
   const taskId = String(body.taskId || "");
   const [task, permissions] = await Promise.all([findTaskById(taskId), getPermissions()]);
   if (!task) return bad("Kayıt bulunamadı", 404);
+  if (task.deletedAt) return bad("Kayıt silinmiş", 404);
   if (!canCommentTask(user, permissions, task)) return bad("Bu kayda güncelleme/fikir/soru girme yetkiniz yok", 403);
 
   const tip = UPDATE_TYPES.includes(body.tip) ? (body.tip as UpdateType) : "Güncelleme";

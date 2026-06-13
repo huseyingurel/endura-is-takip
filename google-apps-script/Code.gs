@@ -15,7 +15,11 @@ const TASK_HEADERS = [
   "createdAt",
   "createdBy",
   "updatedAt",
-  "updatedBy"
+  "updatedBy",
+  "archivedAt",
+  "archivedBy",
+  "deletedAt",
+  "deletedBy"
 ];
 
 const UPDATE_HEADERS = ["id", "taskId", "tip", "metin", "yazarEmail", "yazarAd", "createdAt", "ekLink"];
