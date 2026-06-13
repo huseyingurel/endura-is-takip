@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PRIORITIES, STATUSES, UPDATE_TYPES, type Assignee, type Attachment, type AttachmentUpload, type Capability, type Permission, type Task, type TaskUpdate, type Topic, type User } from "@/lib/types";
 
 type Payload = {
@@ -105,7 +105,11 @@ export default function Dashboard() {
   const [comment, setComment] = useState({ tip: "Güncelleme", metin: "", ekLink: "" });
   const [taskFiles, setTaskFiles] = useState<File[]>([]);
   const [updateFiles, setUpdateFiles] = useState<File[]>([]);
+  const [savingTask, setSavingTask] = useState(false);
+  const [savingUpdate, setSavingUpdate] = useState(false);
   const [filters, setFilters] = useState({ search: "", topic: "", assignee: "", status: "", priority: "", due: "" });
+  const savingTaskRef = useRef(false);
+  const savingUpdateRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -191,6 +195,9 @@ export default function Dashboard() {
 
   async function saveTask(event: FormEvent) {
     event.preventDefault();
+    if (savingTaskRef.current) return;
+    savingTaskRef.current = true;
+    setSavingTask(true);
     setError("");
     const method = draft.id ? "PATCH" : "POST";
     const url = draft.id ? `/api/tasks/${draft.id}` : "/api/tasks";
@@ -209,12 +216,18 @@ export default function Dashboard() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bilinmeyen hata");
+    } finally {
+      savingTaskRef.current = false;
+      setSavingTask(false);
     }
   }
 
   async function addUpdate(event: FormEvent) {
     event.preventDefault();
     if (!selected) return;
+    if (savingUpdateRef.current) return;
+    savingUpdateRef.current = true;
+    setSavingUpdate(true);
     setError("");
     try {
       const uploadPayloads = await filesToUploads(updateFiles);
@@ -230,6 +243,9 @@ export default function Dashboard() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bilinmeyen hata");
+    } finally {
+      savingUpdateRef.current = false;
+      setSavingUpdate(false);
     }
   }
 
@@ -468,7 +484,7 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
-                <button className="btn" type="submit">Kaydet</button>
+                <button className="btn" type="submit" disabled={savingTask}>{savingTask ? "Kaydediliyor..." : "Kaydet"}</button>
               </form>
             )}
 
@@ -525,7 +541,7 @@ export default function Dashboard() {
                       ))}
                     </div>
                   )}
-                  <button className="btn" type="submit">Ekle</button>
+                  <button className="btn" type="submit" disabled={savingUpdate}>{savingUpdate ? "Ekleniyor..." : "Ekle"}</button>
                 </form>
 
                 <div className="update-list">
