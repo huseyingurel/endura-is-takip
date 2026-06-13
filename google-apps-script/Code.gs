@@ -147,13 +147,20 @@ function ensureHeaders_() {
   Object.keys(SHEETS).forEach(function (name) {
     const sheet = sheet_(name);
     const headers = SHEETS[name];
-    const range = sheet.getRange(1, 1, 1, headers.length);
+    const currentWidth = Math.max(sheet.getLastColumn(), headers.length);
+    const range = sheet.getRange(1, 1, 1, currentWidth);
     const current = range.getValues()[0];
-    const needsHeader = current.join("") === "" || headers.some(function (header, index) {
+    const nextHeaders = headers.map(function (header, index) {
+      return current[index] || header;
+    });
+    headers.forEach(function (header) {
+      if (nextHeaders.indexOf(header) < 0) nextHeaders.push(header);
+    });
+    const needsHeader = current.join("") === "" || nextHeaders.length !== current.length || nextHeaders.some(function (header, index) {
       return current[index] !== header;
     });
 
-    if (needsHeader) range.setValues([headers]);
+    if (needsHeader) sheet.getRange(1, 1, 1, nextHeaders.length).setValues([nextHeaders]);
   });
 
   seedIfEmpty_("Topics", DEFAULT_TOPICS);
