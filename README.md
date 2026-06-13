@@ -47,8 +47,8 @@ Birinci spreadsheet içinde şu sekmeler olmalı:
 1. OAuth consent screen ayarla.
 2. Web application OAuth client oluştur.
 3. Authorized redirect URI ekle:
-   - Lokal: `http://localhost:3000/api/auth/callback/google`
-   - Vercel: `https://YOUR-APP.vercel.app/api/auth/callback/google`
+   - Lokal: `http://localhost:3002/api/auth/callback/google`
+   - Vercel: `https://endura-is-takip.vercel.app/api/auth/callback/google`
 
 ### 3. Ortam değişkenleri
 
@@ -65,10 +65,10 @@ GOOGLE_TASKS_SPREADSHEET_ID=
 GOOGLE_PERMISSIONS_SPREADSHEET_ID=
 GOOGLE_SHEETS_CLIENT_EMAIL=
 GOOGLE_SHEETS_PRIVATE_KEY=
-NEXTAUTH_URL=
-NEXTAUTH_SECRET=
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
+AUTH_URL=
+AUTH_SECRET=
+AUTH_GOOGLE_ID=
+AUTH_GOOGLE_SECRET=
 ```
 
 Lokal hızlı test için:

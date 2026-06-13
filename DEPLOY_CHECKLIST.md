@@ -39,7 +39,7 @@ Kontrol:
 Auth.js Google provider icin callback URL:
 
 - Lokal: `http://localhost:3002/api/auth/callback/google`
-- Production: `https://<your-domain>/api/auth/callback/google`
+- Production: `https://endura-is-takip.vercel.app/api/auth/callback/google`
 
 Kontrol:
 
@@ -55,10 +55,10 @@ Gerekli degiskenler:
 - `GOOGLE_PERMISSIONS_SPREADSHEET_ID`
 - `GOOGLE_SHEETS_CLIENT_EMAIL`
 - `GOOGLE_SHEETS_PRIVATE_KEY`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `NEXTAUTH_URL`
-- `NEXTAUTH_SECRET`
+- `AUTH_GOOGLE_ID`
+- `AUTH_GOOGLE_SECRET`
+- `AUTH_URL`
+- `AUTH_SECRET`
 
 ## 6. Vercel Import
 

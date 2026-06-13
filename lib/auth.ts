@@ -1,8 +1,5 @@
+import { auth } from "@/auth";
 import type { User } from "@/lib/types";
-
-export async function decrypt() {
-  return null;
-}
 
 export async function getCurrentUser(): Promise<User | null> {
   if (process.env.DEV_USER_EMAIL) {
@@ -12,5 +9,12 @@ export async function getCurrentUser(): Promise<User | null> {
     };
   }
 
-  return null;
+  const session = await auth();
+  const email = session?.user?.email;
+  if (!email) return null;
+
+  return {
+    email,
+    name: session.user?.name || email
+  };
 }
