@@ -46,6 +46,8 @@ Kontrol:
 - [ ] Google Cloud OAuth client olustur
 - [ ] Authorized redirect URI olarak production callback ekle
 - [ ] Client ID ve Client Secret hazirla
+- [x] Auth.js route production koduna baglandi
+- [x] Production sign-in sayfasi 200 donuyor
 
 ## 5. Vercel Environment Variables
 
@@ -60,6 +62,17 @@ Gerekli degiskenler:
 - `AUTH_URL`
 - `AUTH_SECRET`
 
+Durum:
+
+- [x] `AUTH_URL`
+- [x] `AUTH_SECRET`
+- [x] `GOOGLE_TASKS_SPREADSHEET_ID`
+- [x] `GOOGLE_PERMISSIONS_SPREADSHEET_ID`
+- [ ] `AUTH_GOOGLE_ID`
+- [ ] `AUTH_GOOGLE_SECRET`
+- [ ] `GOOGLE_SHEETS_CLIENT_EMAIL`
+- [ ] `GOOGLE_SHEETS_PRIVATE_KEY`
+
 ## 6. Vercel Import
 
 Vercel Git import sirasinda:
@@ -67,7 +80,7 @@ Vercel Git import sirasinda:
 - [x] Proje adini kontrol et
 - [x] Framework preset olarak `Next.js` sec
 - [x] Root directory dogruysa oldugu gibi birak
-- [ ] Environment variables alanini doldur
+- [ ] Environment variables alanini tamamla
 - [x] Deploy baslat
 
 Production URL:
@@ -79,7 +92,8 @@ Production URL:
 - [x] Ana sayfa aciliyor
 - [ ] `Topics` listesi geliyor
 - [ ] `Assignees` listesi geliyor
-- [ ] Google login calisiyor
+- [x] Auth.js sign-in sayfasi aciliyor
+- [ ] Google OAuth ile giris tamamlanabiliyor
 - [ ] Gorev olusturma Google Sheets'e yaziyor
 - [ ] Gorev guncelleme Google Sheets'e yaziyor
 - [ ] Yetki filtreleri dogru calisiyor
