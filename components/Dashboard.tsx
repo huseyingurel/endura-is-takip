@@ -501,7 +501,7 @@ export default function Dashboard() {
               <div>
                 <h2>{showForm ? (draft.id ? "Takip konusunu düzenle" : "Yeni takip konusu") : selected?.baslik}</h2>
                 {!showForm && selected && <p className="muted">{selected.konuGrubu} · {selected.gorevliAd || selected.gorevliEmail}</p>}
-                {showForm && draft.id && <p className="muted">Bu kayıt için arşivleme ve silme işlemleri sağ üsttedir.</p>}
+                {showForm && draft.id && <p className="muted">{draft.konuGrubu} · Arşivleme ve silme işlemleri sağ üsttedir.</p>}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 {selected && !showForm && <button className="btn secondary" onClick={() => openEditTask(selected)}>Düzenle</button>}
@@ -520,24 +520,26 @@ export default function Dashboard() {
             {showForm && (
               <form onSubmit={saveTask} className="grid" style={{ marginTop: 18 }}>
                 <div className="form-grid">
-                  <label className="full">Konu Grubu
-                    <div className="topic-picker">
-                      {(draft.id ? topicNames : canCreateTopics).map((topic) => {
-                        const metric = topicMetrics.get(topic) || { total: 0, open: 0, late: 0 };
-                        return (
-                          <button
-                            className={`topic-pick ${topicTone(topic)} ${draft.konuGrubu === topic ? "active" : ""}`}
-                            key={topic}
-                            type="button"
-                            onClick={() => setDraft({ ...draft, konuGrubu: topic })}
-                          >
-                            <strong>{topic}</strong>
-                            <span>{metric.open} açık · {metric.total} toplam</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </label>
+                  {!draft.id && (
+                    <label className="full">Konu Grubu
+                      <div className="topic-picker">
+                        {canCreateTopics.map((topic) => {
+                          const metric = topicMetrics.get(topic) || { total: 0, open: 0, late: 0 };
+                          return (
+                            <button
+                              className={`topic-pick ${topicTone(topic)} ${draft.konuGrubu === topic ? "active" : ""}`}
+                              key={topic}
+                              type="button"
+                              onClick={() => setDraft({ ...draft, konuGrubu: topic })}
+                            >
+                              <strong>{topic}</strong>
+                              <span>{metric.open} açık · {metric.total} toplam</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </label>
+                  )}
                   <label>Başlık
                     <input className="field" value={draft.baslik || ""} onChange={(e) => setDraft({ ...draft, baslik: e.target.value })} required />
                   </label>
