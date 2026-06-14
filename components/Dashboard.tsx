@@ -51,6 +51,15 @@ function priorityClass(priority: string) {
   return "";
 }
 
+function topicTone(topic: string) {
+  const lower = topic.toLocaleLowerCase("tr-TR");
+  if (lower.includes("muhasebe") || lower.includes("tahsilat")) return "green";
+  if (lower.includes("depo")) return "blue";
+  if (lower.includes("satış") || lower.includes("sevkan")) return "amber";
+  if (lower.includes("dijital")) return "red";
+  return "";
+}
+
 function formatDate(date?: string) {
   if (!date) return "—";
   const parsed = new Date(date);
@@ -182,11 +191,39 @@ export default function Dashboard() {
     return { total, open: total - closed, closed, stalled, late, avg };
   }, [filteredTasks]);
 
+  const topicMetrics = useMemo(() => {
+    const activeTasks = tasks.filter((task) => !task.deletedAt && (filters.visibility !== "active" || !task.archivedAt));
+    const metrics = new Map<string, { total: number; open: number; late: number }>();
+    topicNames.forEach((topic) => metrics.set(topic, { total: 0, open: 0, late: 0 }));
+    activeTasks.forEach((task) => {
+      const current = metrics.get(task.konuGrubu) || { total: 0, open: 0, late: 0 };
+      current.total += 1;
+      if (task.statu !== "Tamamlandı") current.open += 1;
+      if (overdue(task)) current.late += 1;
+      metrics.set(task.konuGrubu, current);
+    });
+    return metrics;
+  }, [tasks, topicNames, filters.visibility]);
+
+  const allTopicCount = useMemo(() => {
+    return tasks.filter((task) => {
+      if (task.deletedAt) return false;
+      if (filters.visibility === "active" && task.archivedAt) return false;
+      if (filters.visibility === "archived" && !task.archivedAt) return false;
+      return true;
+    }).length;
+  }, [tasks, filters.visibility]);
+
   function openNewTask() {
-    setDraft({ ...emptyDraft, konuGrubu: canCreateTopics[0] || topicNames[0] || "" });
+    const selectedTopic = filters.topic && canCreateTopics.includes(filters.topic) ? filters.topic : canCreateTopics[0] || topicNames[0] || "";
+    setDraft({ ...emptyDraft, konuGrubu: selectedTopic });
     setSelected(null);
     setTaskFiles([]);
     setShowForm(true);
+  }
+
+  function selectTopic(topic: string) {
+    setFilters({ ...filters, topic });
   }
 
   function openEditTask(task: Task) {
@@ -311,44 +348,63 @@ export default function Dashboard() {
 
       {payload && (
         <>
-          <section className="grid kpi-grid">
-            <div className="card"><div className="kpi-label">Toplam konu</div><div className="kpi-value">{kpis.total}</div></div>
-            <div className="card"><div className="kpi-label">Açık konu</div><div className="kpi-value">{kpis.open}</div></div>
-            <div className="card"><div className="kpi-label">Geciken</div><div className="kpi-value">{kpis.late}</div></div>
-            <div className="card"><div className="kpi-label">Duraksayan</div><div className="kpi-value">{kpis.stalled}</div></div>
-            <div className="card"><div className="kpi-label">Ortalama ilerleme</div><div className="kpi-value">%{kpis.avg}</div></div>
-          </section>
+          <div className="workspace-layout">
+            <aside className="topic-sidebar">
+              <div className="topic-sidebar-head">
+                <strong>Konu grupları</strong>
+                <span className="muted">{topicNames.length} grup</span>
+              </div>
+              <button className={`topic-nav-item ${filters.topic === "" ? "active" : ""}`} onClick={() => selectTopic("")}>
+                <span>Tüm konular</span>
+                <strong>{allTopicCount}</strong>
+              </button>
+              {topicNames.map((topic) => {
+                const metric = topicMetrics.get(topic) || { total: 0, open: 0, late: 0 };
+                return (
+                  <button className={`topic-nav-item ${topicTone(topic)} ${filters.topic === topic ? "active" : ""}`} key={topic} onClick={() => selectTopic(topic)}>
+                    <span>{topic}</span>
+                    <strong>{metric.total}</strong>
+                    <small>{metric.open} açık{metric.late > 0 ? ` · ${metric.late} geciken` : ""}</small>
+                  </button>
+                );
+              })}
+            </aside>
 
-          <section className="card">
-            <div className="toolbar">
-              <input className="field" placeholder="Ara: konu, görevli, açıklama, etiket..." value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
-              <select className="field" value={filters.topic} onChange={(e) => setFilters({ ...filters, topic: e.target.value })}>
-                <option value="">Konu grubu</option>
-                {topicNames.map((topic) => <option key={topic}>{topic}</option>)}
-              </select>
-              <select className="field" value={filters.assignee} onChange={(e) => setFilters({ ...filters, assignee: e.target.value })}>
-                <option value="">Görevli</option>
-                {assignees.map((name) => <option key={name}>{name}</option>)}
-              </select>
-              <select className="field" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
-                <option value="">Statü</option>
-                {STATUSES.map((status) => <option key={status}>{status}</option>)}
-              </select>
-              <select className="field" value={filters.priority} onChange={(e) => setFilters({ ...filters, priority: e.target.value })}>
-                <option value="">Öncelik</option>
-                {PRIORITIES.map((priority) => <option key={priority}>{priority}</option>)}
-              </select>
-              <select className="field" value={filters.due} onChange={(e) => setFilters({ ...filters, due: e.target.value })}>
-                <option value="">Tarih</option>
-                <option value="open">Açık konular</option>
-                <option value="overdue">Gecikenler</option>
-              </select>
-              <select className="field" value={filters.visibility} onChange={(e) => setFilters({ ...filters, visibility: e.target.value })}>
-                <option value="active">Aktif kayıtlar</option>
-                <option value="archived">Arşiv</option>
-                <option value="all">Aktif + arşiv</option>
-              </select>
-            </div>
+            <div className="workspace-main">
+              <section className="grid kpi-grid">
+                <div className="card"><div className="kpi-label">Toplam konu</div><div className="kpi-value">{kpis.total}</div></div>
+                <div className="card"><div className="kpi-label">Açık konu</div><div className="kpi-value">{kpis.open}</div></div>
+                <div className="card"><div className="kpi-label">Geciken</div><div className="kpi-value">{kpis.late}</div></div>
+                <div className="card"><div className="kpi-label">Duraksayan</div><div className="kpi-value">{kpis.stalled}</div></div>
+                <div className="card"><div className="kpi-label">Ortalama ilerleme</div><div className="kpi-value">%{kpis.avg}</div></div>
+              </section>
+
+              <section className="card">
+                <div className="toolbar">
+                  <input className="field" placeholder="Ara: konu, görevli, açıklama, etiket..." value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
+                  <select className="field" value={filters.assignee} onChange={(e) => setFilters({ ...filters, assignee: e.target.value })}>
+                    <option value="">Görevli</option>
+                    {assignees.map((name) => <option key={name}>{name}</option>)}
+                  </select>
+                  <select className="field" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+                    <option value="">Statü</option>
+                    {STATUSES.map((status) => <option key={status}>{status}</option>)}
+                  </select>
+                  <select className="field" value={filters.priority} onChange={(e) => setFilters({ ...filters, priority: e.target.value })}>
+                    <option value="">Öncelik</option>
+                    {PRIORITIES.map((priority) => <option key={priority}>{priority}</option>)}
+                  </select>
+                  <select className="field" value={filters.due} onChange={(e) => setFilters({ ...filters, due: e.target.value })}>
+                    <option value="">Tarih</option>
+                    <option value="open">Açık konular</option>
+                    <option value="overdue">Gecikenler</option>
+                  </select>
+                  <select className="field" value={filters.visibility} onChange={(e) => setFilters({ ...filters, visibility: e.target.value })}>
+                    <option value="active">Aktif kayıtlar</option>
+                    <option value="archived">Arşiv</option>
+                    <option value="all">Aktif + arşiv</option>
+                  </select>
+                </div>
 
             <div className="tabs">
               <button className={`tab ${view === "table" ? "active" : ""}`} onClick={() => setView("table")}>Liste</button>
@@ -432,7 +488,9 @@ export default function Dashboard() {
                 </table>
               </div>
             )}
-          </section>
+              </section>
+            </div>
+          </div>
         </>
       )}
 
@@ -462,11 +520,23 @@ export default function Dashboard() {
             {showForm && (
               <form onSubmit={saveTask} className="grid" style={{ marginTop: 18 }}>
                 <div className="form-grid">
-                  <label>Konu Grubu
-                    <select className="field" value={draft.konuGrubu || ""} onChange={(e) => setDraft({ ...draft, konuGrubu: e.target.value })} required>
-                      <option value="">Seç</option>
-                      {(draft.id ? topicNames : canCreateTopics).map((topic) => <option key={topic}>{topic}</option>)}
-                    </select>
+                  <label className="full">Konu Grubu
+                    <div className="topic-picker">
+                      {(draft.id ? topicNames : canCreateTopics).map((topic) => {
+                        const metric = topicMetrics.get(topic) || { total: 0, open: 0, late: 0 };
+                        return (
+                          <button
+                            className={`topic-pick ${topicTone(topic)} ${draft.konuGrubu === topic ? "active" : ""}`}
+                            key={topic}
+                            type="button"
+                            onClick={() => setDraft({ ...draft, konuGrubu: topic })}
+                          >
+                            <strong>{topic}</strong>
+                            <span>{metric.open} açık · {metric.total} toplam</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </label>
                   <label>Başlık
                     <input className="field" value={draft.baslik || ""} onChange={(e) => setDraft({ ...draft, baslik: e.target.value })} required />
